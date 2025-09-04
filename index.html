@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Breaker - The Array Heist</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #0a0a0a, #1a1a2e, #16213e);
+            color: #00ff41;
+            min-height: 100vh;
+            overflow-x: auto;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .title {
+            font-size: 2.5em;
+            text-shadow: 0 0 20px #00ff41;
+            margin-bottom: 10px;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { text-shadow: 0 0 20px #00ff41; }
+            to { text-shadow: 0 0 30px #00ff41, 0 0 40px #00ff41; }
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            color: #ff6b6b;
+            margin-bottom: 20px;
+        }
+
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 255, 65, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #00ff41;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .level-info, .timer, .target-pattern {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 15px;
+            border-radius: 5px;
+            border: 1px solid #00ff41;
+        }
+
+        .timer.warning {
+            color: #ff6b6b;
+            animation: pulse 0.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { opacity: 1; }
+            to { opacity: 0.5; }
+        }
+
+        .array-container {
+            display: flex;
+            justify-content: center;
+            margin: 40px 0;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            border: 2px solid #00ff41;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+            overflow-x: auto;
+        }
+
+        .array-cell {
+            width: 60px;
+            height: 60px;
+            border: 2px solid #00ff41;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 5px;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #00ff41;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .array-cell.empty {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: #666;
+            color: #666;
+        }
+
+        .array-cell.highlighted {
+            background: #ff6b6b;
+            border-color: #ff6b6b;
+            color: white;
+            transform: scale(1.1);
+            box-shadow: 0 0 15px #ff6b6b;
+        }
+
+        .array-cell.found {
+            background: #4ecdc4;
+            border-color: #4ecdc4;
+            color: white;
+            animation: success-bounce 0.6s ease-in-out;
+        }
+
+        @keyframes success-bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+
+        .array-cell::after {
+            content: attr(data-index);
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.8em;
+            color: #666;
+        }
+
+        .controls-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .control-group {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #00ff41;
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .control-group h3 {
+            color: #ff6b6b;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .input-group label {
+            min-width: 60px;
+            font-size: 0.9em;
+        }
+
+        .input-group input {
+            flex: 1;
+            min-width: 80px;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid #00ff41;
+            border-radius: 5px;
+            color: #00ff41;
+            font-family: 'Courier New', monospace;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #00ff41, #00cc33);
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 65, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-danger {
+            background: linear-gradient(45deg, #ff6b6b, #ff5252);
+            color: white;
+        }
+
+        .btn-warning {
+            background: linear-gradient(45deg, #ffa726, #ff9800);
+            color: white;
+        }
+
+        .btn-info {
+            background: linear-gradient(45deg, #4ecdc4, #26a69a);
+            color: white;
+        }
+
+        .feedback {
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #00ff41;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .feedback.success {
+            border-color: #4ecdc4;
+            color: #4ecdc4;
+        }
+
+        .feedback.error {
+            border-color: #ff6b6b;
+            color: #ff6b6b;
+        }
+
+        .feedback.warning {
+            border-color: #ffa726;
+            color: #ffa726;
+        }
+
+        .level-complete {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .level-complete.show {
+            display: flex;
+        }
+
+        .level-complete h2 {
+            font-size: 3em;
+            color: #4ecdc4;
+            margin-bottom: 20px;
+            animation: celebration 1s ease-in-out;
+        }
+
+        @keyframes celebration {
+            0% { transform: scale(0.5) rotate(-180deg); opacity: 0; }
+            50% { transform: scale(1.2) rotate(0deg); opacity: 1; }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+
+        .stats {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .next-level-btn {
+            font-size: 1.2em;
+            padding: 15px 30px;
+        }
+
+        @media (max-width: 768px) {
+            .title { font-size: 2em; }
+            .array-cell { width: 50px; height: 50px; margin: 0 3px; }
+            .controls-panel { grid-template-columns: 1fr; }
+            .game-info { flex-direction: column; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">🚨 CODE BREAKER 🚨</h1>
+            <p class="subtitle">The Array Heist - Infiltrate the Digital Vault</p>
+        </div>
+
+        <div class="game-info">
+            <div class="level-info">
+                <strong>Level: <span id="currentLevel">1</span></strong>
+                <div>Mission: Find <span id="patternLength">2</span>-digit pattern</div>
+            </div>
+            <div class="timer">
+                <strong>Time: <span id="timeLeft">60</span>s</strong>
+            </div>
+            <div class="target-pattern">
+                <strong>Target: [<span id="targetPattern">?,?</span>]</strong>
+            </div>
+        </div>
+
+        <div class="array-container">
+            <div id="arrayDisplay"></div>
+        </div>
+
+        <div class="controls-panel">
+            <div class="control-group">
+                <h3>🔧 Array Operations</h3>
+                <div class="input-group">
+                    <label>Index:</label>
+                    <input type="number" id="indexInput" min="0" max="9" placeholder="0-9">
+                    <label>Value:</label>
+                    <input type="number" id="valueInput" min="0" max="9" placeholder="0-9">
+                </div>
+                <button class="btn" onclick="insertElement()">📥 Insert</button>
+                <button class="btn btn-danger" onclick="deleteElement()">🗑️ Delete</button>
+            </div>
+
+            <div class="control-group">
+                <h3>🔍 Pattern Search</h3>
+                <div class="input-group">
+                    <label>Pattern:</label>
+                    <input type="text" id="patternInput" placeholder="e.g., 2,1,4">
+                </div>
+                <button class="btn btn-info" onclick="searchPattern()">🔍 Search</button>
+                <button class="btn btn-warning" onclick="autoSolve()">💡 Auto-Solve</button>
+            </div>
+
+            <div class="control-group">
+                <h3>⚙️ Game Controls</h3>
+                <button class="btn btn-warning" onclick="resetArray()">🔄 Reset Array</button>
+                <button class="btn btn-info" onclick="generateNewTarget()">🎯 New Target</button>
+                <button class="btn btn-danger" onclick="restartGame()">🆕 Restart Game</button>
+            </div>
+        </div>
+
+        <div id="feedback" class="feedback">
+            Welcome, hacker! Your mission: manipulate the array to find the hidden pattern. Good luck! 🕵️‍♂️
+        </div>
+    </div>
+
+    <div id="levelComplete" class="level-complete">
+        <h2>🎉 LEVEL COMPLETE! 🎉</h2>
+        <div class="stats">
+            <p>Time: <span id="completionTime"></span> seconds</p>
+            <p>Operations used: <span id="operationsCount"></span></p>
+        </div>
+        <button class="btn next-level-btn" onclick="nextLevel()">Next Level ➡️</button>
+    </div>
+
+    <script>
+        let gameArray = [];
+        let targetPattern = [];
+        let currentLevel = 1;
+        let timeLeft = 60;
+        let gameTimer;
+        let operationsCount = 0;
+        let gameStartTime;
+
+        // Audio Context for sound effects
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(frequency, duration, type = 'sine') {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            oscillator.frequency.value = frequency;
+            oscillator.type = type;
+            
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            
+            oscillator.start(audioCtx.currentTime);
+            oscillator.stop(audioCtx.currentTime + duration);
+        }
+
+        function initializeGame() {
+            // Initialize array with some random numbers and empty spaces
+            gameArray = [3, null, 7, null, null, 1, null, 9];
+            generateNewTarget();
+            updateDisplay();
+            startTimer();
+            gameStartTime = Date.now();
+            operationsCount = 0;
+            showFeedback("Game initialized! Find the hidden pattern to break the code!", "success");
+        }
+
+        function generateNewTarget() {
+            const patternLength = currentLevel === 1 ? 2 : currentLevel === 2 ? 3 : 3;
+            targetPattern = [];
+            
+            for (let i = 0; i < patternLength; i++) {
+                targetPattern.push(Math.floor(Math.random() * 10));
+            }
+            
+            document.getElementById('patternLength').textContent = patternLength;
+            document.getElementById('targetPattern').textContent = 
+                currentLevel === 3 && Math.random() > 0.5 ? 
+                    targetPattern.slice().reverse().join(',') + ' (reverse)' :
+                    targetPattern.join(',');
+            
+            showFeedback(`New target generated: [${targetPattern.join(',')}]. Find this pattern in the array!`, "warning");
+        }
+
+        function updateDisplay() {
+            const display = document.getElementById('arrayDisplay');
+            display.innerHTML = '';
+            
+            for (let i = 0; i < 10; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'array-cell';
+                cell.setAttribute('data-index', i);
+                
+                if (gameArray[i] !== null && gameArray[i] !== undefined) {
+                    cell.textContent = gameArray[i];
+                } else {
+                    cell.textContent = '';
+                    cell.classList.add('empty');
+                }
+                
+                display.appendChild(cell);
+            }
+            
+            document.getElementById('currentLevel').textContent = currentLevel;
+        }
+
+        function insertElement() {
+            const index = parseInt(document.getElementById('indexInput').value);
+            const value = parseInt(document.getElementById('valueInput').value);
+            
+            if (isNaN(index) || index < 0 || index >= 10) {
+                showFeedback("Invalid index! Please enter a number between 0-9.", "error");
+                playSound(200, 0.3, 'sawtooth');
+                return;
+            }
+            
+            if (isNaN(value) || value < 0 || value > 9) {
+                showFeedback("Invalid value! Please enter a digit between 0-9.", "error");
+                playSound(200, 0.3, 'sawtooth');
+                return;
+            }
+
+            // Shift elements to the right
+            for (let i = 9; i > index; i--) {
+                gameArray[i] = gameArray[i-1];
+            }
+            
+            gameArray[index] = value;
+            operationsCount++;
+            
+            playSound(440, 0.2);
+            showFeedback(`Inserted ${value} at index ${index}! Array shifted right.`, "success");
+            updateDisplay();
+            
+            // Clear inputs
+            document.getElementById('indexInput').value = '';
+            document.getElementById('valueInput').value = '';
+            
+            // Animate insertion
+            animateInsertion(index);
+            
+            // Check if pattern is found
+            setTimeout(checkWinCondition, 500);
+        }
+
+        function deleteElement() {
+            const index = parseInt(document.getElementById('indexInput').value);
+            
+            if (isNaN(index) || index < 0 || index >= 10) {
+                showFeedback("Invalid index! Please enter a number between 0-9.", "error");
+                playSound(200, 0.3, 'sawtooth');
+                return;
+            }
+            
+            if (gameArray[index] === null || gameArray[index] === undefined) {
+                showFeedback("No element to delete at that index!", "error");
+                playSound(200, 0.3, 'sawtooth');
+                return;
+            }
+            
+            const deletedValue = gameArray[index];
+            
+            // Shift elements to the left
+            for (let i = index; i < 9; i++) {
+                gameArray[i] = gameArray[i+1];
+            }
+            gameArray[9] = null;
+            
+            operationsCount++;
+            
+            playSound(330, 0.2, 'square');
+            showFeedback(`Deleted ${deletedValue} at index ${index}! Array shifted left.`, "success");
+            updateDisplay();
+            
+            // Clear inputs
+            document.getElementById('indexInput').value = '';
+            
+            // Animate deletion
+            animateDeletion(index);
+        }
+
+        function searchPattern() {
+            const patternInput = document.getElementById('patternInput').value.trim();
+            
+            if (!patternInput) {
+                showFeedback("Enter a pattern to search for (e.g., 2,1,4)", "error");
+                playSound(200, 0.3, 'sawtooth');
+                return;
+            }
+            
+            const searchPattern = patternInput.split(',').map(x => parseInt(x.trim()));
+            
+            if (searchPattern.some(isNaN) || searchPattern.some(x => x < 0 || x > 9)) {
+                showFeedback("Invalid pattern! Use digits 0-9 separated by commas.", "error");
+                playSound(200, 0.3, 'sawtooth');
+                return;
+            }
+            
+            operationsCount++;
+            animateSearch(searchPattern);
+        }
+
+        function animateSearch(searchPattern) {
+            const cells = document.querySelectorAll('.array-cell');
+            let currentIndex = 0;
+            
+            function highlightNext() {
+                // Clear previous highlights
+                cells.forEach(cell => cell.classList.remove('highlighted'));
+                
+                if (currentIndex > gameArray.length - searchPattern.length) {
+                    showFeedback(`Pattern [${searchPattern.join(',')}] not found in array.`, "error");
+                    playSound(200, 0.3, 'sawtooth');
+                    return;
+                }
+                
+                // Highlight current search window
+                for (let i = 0; i < searchPattern.length; i++) {
+                    if (currentIndex + i < cells.length) {
+                        cells[currentIndex + i].classList.add('highlighted');
+                    }
+                }
+                
+                // Check if pattern matches
+                let matches = true;
+                for (let i = 0; i < searchPattern.length; i++) {
+                    if (gameArray[currentIndex + i] !== searchPattern[i]) {
+                        matches = false;
+                        break;
+                    }
+                }
+                
+                if (matches) {
+                    // Found the pattern!
+                    for (let i = 0; i < searchPattern.length; i++) {
+                        cells[currentIndex + i].classList.remove('highlighted');
+                        cells[currentIndex + i].classList.add('found');
+                    }
+                    
+                    playSound(660, 0.5);
+                    showFeedback(`Pattern [${searchPattern.join(',')}] found at index ${currentIndex}!`, "success");
+                    
+                    // Check if this is the target pattern
+                    if (JSON.stringify(searchPattern) === JSON.stringify(targetPattern) || 
+                        (currentLevel === 3 && JSON.stringify(searchPattern) === JSON.stringify(targetPattern.slice().reverse()))) {
+                        setTimeout(levelComplete, 1000);
+                    }
+                    return;
+                }
+                
+                currentIndex++;
+                setTimeout(highlightNext, 300);
+            }
+            
+            highlightNext();
+        }
+
+        function animateInsertion(index) {
+            const cells = document.querySelectorAll('.array-cell');
+            cells[index].style.transform = 'scale(0)';
+            cells[index].style.opacity = '0';
+            
+            setTimeout(() => {
+                cells[index].style.transform = 'scale(1)';
+                cells[index].style.opacity = '1';
+            }, 100);
+        }
+
+        function animateDeletion(index) {
+            const cells = document.querySelectorAll('.array-cell');
+            cells[index].style.transform = 'scale(0)';
+            cells[index].style.opacity = '0';
+        }
+
+        function resetArray() {
+            gameArray = [3, null, 7, null, null, 1, null, 9];
+            operationsCount = 0;
+            updateDisplay();
+            showFeedback("Array reset! Try again to find the pattern.", "warning");
+            playSound(550, 0.3);
+        }
+
+        function autoSolve() {
+            // Find where the target pattern can fit
+            let inserted = false;
+            
+            for (let startIndex = 0; startIndex <= gameArray.length - targetPattern.length; startIndex++) {
+                let canFit = true;
+                
+                // Check if we can place the pattern here
+                for (let i = 0; i < targetPattern.length; i++) {
+                    if (gameArray[startIndex + i] !== null && gameArray[startIndex + i] !== targetPattern[i]) {
+                        canFit = false;
+                        break;
+                    }
+                }
+                
+                if (canFit) {
+                    // Insert the pattern
+                    for (let i = 0; i < targetPattern.length; i++) {
+                        if (gameArray[startIndex + i] === null) {
+                            gameArray[startIndex + i] = targetPattern[i];
+                        }
+                    }
+                    inserted = true;
+                    break;
+                }
+            }
+            
+            if (!inserted) {
+                // Clear some space and insert
+                gameArray = [null, null, null, null, null, null, null, null, null, null];
+                for (let i = 0; i < targetPattern.length; i++) {
+                    gameArray[i] = targetPattern[i];
+                }
+            }
+            
+            operationsCount += 5; // Penalty for auto-solve
+            updateDisplay();
+            showFeedback("Auto-solved! Pattern inserted into array. (-5 operation penalty)", "warning");
+            playSound(440, 0.3);
+            
+            setTimeout(() => {
+                searchPattern();
+            }, 1000);
+        }
+
+        function checkWinCondition() {
+            // Check if target pattern exists in array
+            for (let i = 0; i <= gameArray.length - targetPattern.length; i++) {
+                let matches = true;
+                for (let j = 0; j < targetPattern.length; j++) {
+                    if (gameArray[i + j] !== targetPattern[j]) {
+                        matches = false;
+                        break;
+                    }
+                }
+                
+                if (matches) {
+                    levelComplete();
+                    return;
+                }
+                
+                // Check reverse pattern for level 3
+                if (currentLevel === 3) {
+                    const reversePattern = targetPattern.slice().reverse();
+                    let reverseMatches = true;
+                    for (let j = 0; j < reversePattern.length; j++) {
+                        if (gameArray[i + j] !== reversePattern[j]) {
+                            reverseMatches = false;
+                            break;
+                        }
+                    }
+                    
+                    if (reverseMatches) {
+                        levelComplete();
+                        return;
+                    }
+                }
+            }
+        }
+
+        function levelComplete() {
+            clearInterval(gameTimer);
+            
+            const timeTaken = Math.ceil((Date.now() - gameStartTime) / 1000);
+            document.getElementById('completionTime').textContent = timeTaken;
+            document.getElementById('operationsCount').textContent = operationsCount;
+            
+            // Victory sound
+            playSound(523, 0.2);
+            setTimeout(() => playSound(659, 0.2), 200);
+            setTimeout(() => playSound(784, 0.4), 400);
+            
+            document.getElementById('levelComplete').classList.add('show');
+        }
+
+        function nextLevel() {
+            document.getElementById('levelComplete').classList.remove('show');
+            currentLevel++;
+            
+            if (currentLevel > 3) {
+                showFeedback("🎉 Congratulations! You've completed all levels! You're a master hacker! 🎉", "success");
+                currentLevel = 1; // Reset to level 1
+            }
+            
+            timeLeft = 60;
+            operationsCount = 0;
+            gameStartTime = Date.now();
+            resetArray();
+            generateNewTarget();
+            startTimer();
+        }
+
+        function restartGame() {
+            clearInterval(gameTimer);
+            currentLevel = 1;
+            timeLeft = 60;
+            initializeGame();
+        }
+
+        function startTimer() {
+            clearInterval(gameTimer);
+            gameTimer = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timeLeft').textContent = timeLeft;
+                
+                const timerElement = document.querySelector('.timer');
+                if (timeLeft <= 10) {
+                    timerElement.classList.add('warning');
+                } else {
+                    timerElement.classList.remove('warning');
+                }
+                
+                if (timeLeft <= 0) {
+                    clearInterval(gameTimer);
+                    showFeedback("⏰ Time's up! The security system detected you. Try again!", "error");
+                    playSound(200, 1, 'sawtooth');
+                    setTimeout(() => {
+                        restartGame();
+                    }, 2000);
+                }
+            }, 1000);
+        }
+
+        function showFeedback(message, type = "info") {
+            const feedback = document.getElementById('feedback');
+            feedback.textContent = message;
+            feedback.className = `feedback ${type}`;
+            
+            // Auto-clear success messages
+            if (type === "success") {
+                setTimeout(() => {
+                    feedback.textContent = "Ready for next operation...";
+                    feedback.className = "feedback";
+                }, 3000);
+            }
+        }
+
+        // Initialize the game when page loads
+        window.addEventListener('load', () => {
+            // Enable audio context on first user interaction
+            document.addEventListener('click', function enableAudio() {
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                document.removeEventListener('click', enableAudio);
+            });
+            
+            initializeGame();
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const activeElement = document.activeElement;
+                if (activeElement.id === 'patternInput') {
+                    searchPattern();
+                } else if (activeElement.id === 'indexInput' || activeElement.id === 'valueInput') {
+                    if (document.getElementById('indexInput').value && document.getElementById('valueInput').value) {
+                        insertElement();
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
